@@ -21,7 +21,15 @@ enum NodeType
     NODE_TYPE,
     NODE_STMT,
     NODE_PROG,
-    NODE_OP
+    NODE_OP,
+    NODE_FUNC,
+    NODE_PARAM,
+    NODE_PARAMS,
+    NODE_DEFLIST,
+    NODE_UMINUS,
+    NODE_INC,
+    NODE_DEC,
+    NODE_STR
 };
 
 enum StmtType
@@ -31,7 +39,13 @@ enum StmtType
     STMT_DECL,
     STMT_ASSIGN,
     STMT_PRINTF,
-    STMT_SCANF
+    STMT_SCANF,
+    STMT_ADDASSIGN,
+    STMT_SUBASSIGN,
+    STMT_FOR,
+    STMT_FOR1,
+    STMT_FOR2,
+    STMT_FOR3
 };
 
 enum OpType
@@ -39,18 +53,30 @@ enum OpType
     OP_EQUAL,
     OP_NOT,
     OP_ADD,
+    OP_SUB,
+    OP_MUL,
+    OP_QUO,
+    OP_REM,
+    OP_LSS,
+    OP_LEQ,
+    OP_GTR,
+    OP_GEQ,
+    OP_AND,
+    OP_OR
 };
 
 enum VarType
 {
     VAR_INTEGER,
-    VAR_VOID
+    VAR_VOID,
+    VAR_CHAR
 };
 
 struct TreeNode
 {
     int nodeID;
     NodeType nodeType;
+    int line;
 
     TreeNode *child = nullptr;
     TreeNode *sibling = nullptr;
@@ -77,7 +103,7 @@ struct TreeNode
     VarType varType;
     string var_name;
 
-    TreeNode(NodeType type);
+    TreeNode(NodeType type,int num);
 };
 
 #endif

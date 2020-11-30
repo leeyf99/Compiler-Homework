@@ -9,7 +9,7 @@ main: lex.yy.cc main.tab.cc
 run: main
 	./main.out
 test:main
-	for file in $(basename $(shell find test/0.c)); \
+	for file in $(basename $(shell find test/*.c)); \
 	do \
 		./main.out <$$file.c >$$file.res; \
 	done
