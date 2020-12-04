@@ -18,12 +18,11 @@ string oNodeType[] = {
     "NODE_PARAMS",
     "NODE_DEFLIST",
     "NODE_UMINUS",
-    "NODE_INC",
-    "NODE_DEC",
     "NODE_STR"};
 
 string oStmtType[]{
     "STMT_IF",
+    "STMT_ELSE",
     "STMT_WHILE",
     "STMT_DECL",
     "STMT_ASSIGN",
@@ -34,7 +33,9 @@ string oStmtType[]{
     "STMT_FOR",
     "STMT_FOR1",
     "STMT_FOR2",
-    "STMT_FOR3"};
+    "STMT_FOR3",
+    "STMT_INC",
+    "STMT_DEC",};
 
 string oOpType[]{
     "OP_EQUAL",
@@ -112,6 +113,7 @@ void TreeNode::genNodeId()
 
 void TreeNode::printNodeInfo()
 {
+            cout << setw(15) << oNodeType[nodeType];
     if (nodeType == NODE_STMT)
     {
         cout << setw(15) << oStmtType[stmtType];
@@ -133,7 +135,7 @@ void TreeNode::printNodeInfo()
     }
     else
     {
-        cout << setw(15) << oNodeType[nodeType];
+
         if (nodeType == NODE_CONST)
         {
             cout << setw(9) << "value:" << setw(6) << int_val;

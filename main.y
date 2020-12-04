@@ -41,18 +41,17 @@ program
     ;
 
 unit
-    : unit statements{$$=$1;$1->addSibling($2);}
-    | unit func_def{$$=$1;$1->addSibling($2);}
-    | statements{$$=$1;}
-    | func_def{$$=$1;}
+    : unit func{$$=$1;$1->addSibling($2);}
+    | func{$$=$1;}
     ;
 
-func_def
+func
     : type ID LPAREN func_params RPAREN statement {
         TreeNode *node=new TreeNode(NODE_FUNC,$4->line);
         $$=node;
         node->addChild($4);
         node->addChild($6);}
+    | statement {$$=$1;}
     ;
 func_params
     : func_param {
@@ -85,6 +84,7 @@ func_param
         $$=node;
     }
     ;
+
 statements
     : statement {$$=$1;}
     | statements statement{$$=$1;$$->addSibling($2);}
@@ -130,7 +130,10 @@ if_else
         node->stmtType=STMT_IF;
         node->addChild($2);
         node->addChild($3);
-        node->addChild($5);
+        TreeNode *node0=new TreeNode(NODE_STMT,$5->line);
+        node0->stmtType=STMT_ELSE;
+        node0->addChild($5);
+        node->addChild(node0);
         $$=node;
     }
     ;
@@ -144,43 +147,43 @@ while
     }
     ;
 for
-    : FOR LPAREN for1 for2 for3 RPAREN statement
+    : FOR LPAREN for1 SEMICOLON for2 SEMICOLON for3 RPAREN statement
     {
-        TreeNode *node=new TreeNode(NODE_STMT,$2->line);
+        TreeNode *node=new TreeNode(NODE_STMT,$3->line);
         node->stmtType=STMT_FOR;
         node->addChild($3);
-        node->addChild($4);
         node->addChild($5);
         node->addChild($7);
+        node->addChild($9);
         $$=node;
     }
 for1
-    : ID SEMICOLON {
+    : ID{
         TreeNode *node=new TreeNode(NODE_STMT,$1->line);
         node->stmtType=STMT_FOR1;
         node->addChild($1);
         $$=node;
     }
-    | instruction {
+    | instruction0{
         TreeNode *node=new TreeNode(NODE_STMT,$1->line);
         node->stmtType=STMT_FOR1;
         node->addChild($1);
         $$=node;
     }
-    | SEMICOLON {
+    | {
         TreeNode *node=new TreeNode(NODE_STMT,yylineno);
         node->stmtType=STMT_FOR1;
         $$=node;
     }
     ;
 for2
-    : bool_expr SEMICOLON{
+    : bool_expr {
         TreeNode *node=new TreeNode(NODE_STMT,$1->line);
         node->stmtType=STMT_FOR2;
         node->addChild($1);
         $$=node;
     }
-    | SEMICOLON {
+    | {
         TreeNode *node=new TreeNode(NODE_STMT,yylineno);
         node->stmtType=STMT_FOR2;
         $$=node;
@@ -230,26 +233,14 @@ instruction0
     }
     |ID INC {
         TreeNode *node=new TreeNode(NODE_STMT,$1->line);
+        node->stmtType=STMT_INC;
         node->addChild($1);
-        node->addChild($2);
         $$=node;
     }
     |ID DEC {
         TreeNode *node=new TreeNode(NODE_STMT,$1->line);
+        node->stmtType=STMT_DEC;
         node->addChild($1);
-        node->addChild($2);
-        $$=node;
-    }
-    |DEC ID  {
-        TreeNode *node=new TreeNode(NODE_STMT,$1->line);
-        node->addChild($1);
-        node->addChild($2);
-        $$=node;
-    }
-    |INC ID  {
-        TreeNode *node=new TreeNode(NODE_STMT,$1->line);
-        node->addChild($1);
-        node->addChild($2);
         $$=node;
     }
     | printf  {$$=$1;}
@@ -304,13 +295,13 @@ instruction
     ;
 printf
     : PRINTF LPAREN expr RPAREN {
-        TreeNode *node=new TreeNode(NODE_STMT,$1->line);
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
         node->stmtType=STMT_PRINTF;
         node->addChild($3);
         $$=node;
     }
     | PRINTF LPAREN STRING COMMA expr RPAREN {
-        TreeNode *node=new TreeNode(NODE_STMT,$1->line);
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
         node->stmtType=STMT_PRINTF;
         node->addChild($3);
         node->addChild($5);
@@ -318,13 +309,13 @@ printf
     ;
 scanf
     : SCANF LPAREN expr RPAREN {
-        TreeNode *node=new TreeNode(NODE_STMT,$1->line);
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
         node->stmtType=STMT_SCANF;
         node->addChild($3);
         $$=node;
     }
     | SCANF LPAREN STRING COMMA QUOTE expr RPAREN {
-        TreeNode *node=new TreeNode(NODE_STMT,$1->line);
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
         node->stmtType=STMT_SCANF;
         node->addChild($3);
         node->addChild($6);

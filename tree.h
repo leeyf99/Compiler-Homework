@@ -35,6 +35,7 @@ enum NodeType
 enum StmtType
 {
     STMT_IF,
+    STMT_ELSE,
     STMT_WHILE,
     STMT_DECL,
     STMT_ASSIGN,
@@ -45,7 +46,9 @@ enum StmtType
     STMT_FOR,
     STMT_FOR1,
     STMT_FOR2,
-    STMT_FOR3
+    STMT_FOR3,
+    STMT_INC,
+    STMT_DEC,
 };
 
 enum OpType
