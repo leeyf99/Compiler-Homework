@@ -1,7 +1,9 @@
 %{
     #include"common.h"
+    #include"symbol.h"
     extern TreeNode * root;
     extern int yylineno;
+    extern symbol_table symtbl;
     int yylex();
     int yyerror( char const * );
 %}
@@ -9,24 +11,28 @@
 
 %start program
 
+%token RETURN
 %token STRING
-%token ID INTEGER
+%token CONST
+%token ID INTEGER CHARACTER
 %token INC DEC
+%token ELIF
 %token IF ELSE WHILE FOR
-%token INT VOID CHAR
+%token INT VOID CHAR BOOL
 %token LPAREN RPAREN LBRACE RBRACE SEMICOLON COMMA
 %token TRUE FALSE
 %token AND OR
 %token NOT
-%token EQUAL LEQ GEQ LSS GTR
+%token EQUAL LEQ GEQ LSS GTR NOTEQ
 %token ASSIGN ADD_ASSIGN SUB_ASSIGN
 %token ADD SUB
-%token MUL QUO REM
+%token MUL QUO REM SINQUO
 %token PRINTF SCANF
 %token QUOTE
 
 %right UMINUS
-%left AND OR
+%left OR
+%left AND
 %right NOT
 %left EQUAL LEQ GEQ LSS GTR
 %right ASSIGN ADD_ASSIGN SUB_ASSIGN
@@ -96,6 +102,7 @@ statement
     | LBRACE statements RBRACE {$$=$2;}
     | var_def {$$=$1;}
     | for {$$=$1;}
+    | return_sen{$$=$1;}
     ;
 var_def
     : type def_list SEMICOLON {
@@ -118,31 +125,93 @@ def_list
     }
     ;
 if_else
-    : IF bool_statment statement %prec LOWER_THEN_ELSE {
-        TreeNode *node=new TreeNode(NODE_STMT,$2->line);
+    : IF LPAREN bool_expr RPAREN statement %prec LOWER_THEN_ELSE {
+        TreeNode *node=new TreeNode(NODE_STMT,$3->line);
         node->stmtType=STMT_IF;
-        node->addChild($2);
-        node->addChild($3);
+        TreeNode *cond=new TreeNode(NODE_STMT,$3->line);
+        cond->stmtType=STMT_COND;
+        cond->addChild($3);
+        TreeNode *body=new TreeNode(NODE_STMT,$3->line);
+        body->stmtType=STMT_BODY;
+        body->addChild($5);
+        node->addChild(cond);
+        node->addChild(body);
         $$=node;
     }
-    | IF bool_statment statement ELSE statement {
-        TreeNode *node=new TreeNode(NODE_STMT,$2->line);
+    | IF LPAREN bool_expr RPAREN statement ELSE statement {
+        TreeNode *node=new TreeNode(NODE_STMT,$3->line);
         node->stmtType=STMT_IF;
-        node->addChild($2);
-        node->addChild($3);
-        TreeNode *node0=new TreeNode(NODE_STMT,$5->line);
-        node0->stmtType=STMT_ELSE;
-        node0->addChild($5);
-        node->addChild(node0);
+        TreeNode *cond=new TreeNode(NODE_STMT,$3->line);
+        cond->stmtType=STMT_COND;
+        cond->addChild($3);
+        TreeNode *body=new TreeNode(NODE_STMT,$3->line);
+        body->stmtType=STMT_BODY;
+        body->addChild($5);
+        TreeNode *else0=new TreeNode(NODE_STMT,$7->line);
+        else0->stmtType=STMT_ELSE;
+        else0->addChild($7);
+        node->addChild(cond);
+        node->addChild(body);
+        node->addChild(else0);
+        $$=node;
+    }
+    | IF LPAREN bool_expr RPAREN statement if_else0 %prec LOWER_THEN_ELSE {
+        TreeNode *node=new TreeNode(NODE_STMT,$3->line);
+        node->stmtType=STMT_IF;
+        TreeNode *cond=new TreeNode(NODE_STMT,$3->line);
+        cond->stmtType=STMT_COND;
+        cond->addChild($3);
+        TreeNode *body=new TreeNode(NODE_STMT,$3->line);
+        body->stmtType=STMT_BODY;
+        body->addChild($5);
+        node->addChild(cond);
+        node->addChild(body);
+        node->addChild($6);
+        $$=node;
+    }
+    | IF LPAREN bool_expr RPAREN statement if_else0 ELSE statement {
+        TreeNode *node=new TreeNode(NODE_STMT,$3->line);
+        node->stmtType=STMT_IF;
+        TreeNode *cond=new TreeNode(NODE_STMT,$3->line);
+        cond->stmtType=STMT_COND;
+        cond->addChild($3);
+        TreeNode *body=new TreeNode(NODE_STMT,$3->line);
+        body->stmtType=STMT_BODY;
+        body->addChild($5);
+        TreeNode *else0=new TreeNode(NODE_STMT,$8->line);
+        else0->stmtType=STMT_ELSE;
+        else0->addChild($8);
+        node->addChild(cond);
+        node->addChild(body);
+        node->addChild($6);
+        node->addChild(else0);
         $$=node;
     }
     ;
+if_else0
+    : ELIF LPAREN bool_expr RPAREN statement {
+        TreeNode *cond=new TreeNode(NODE_STMT,$3->line);
+        cond->stmtType=STMT_COND;
+        cond->addChild($3);
+        TreeNode *body=new TreeNode(NODE_STMT,$5->line);
+        body->stmtType=STMT_BODY;
+        body->addChild($5);
+        cond->addSibling(body);
+        $$=cond;
+    }
+    ;
 while
-    : WHILE bool_statment statement {
-        TreeNode *node=new TreeNode(NODE_STMT,$2->line);
+    : WHILE LPAREN bool_expr RPAREN statement {
+        TreeNode *node=new TreeNode(NODE_STMT,$3->line);
         node->stmtType=STMT_WHILE;
-        node->addChild($2);
-        node->addChild($3);
+        TreeNode *cond=new TreeNode(NODE_STMT,$3->line);
+        cond->addChild($3);
+        cond->stmtType=STMT_COND;
+        node->addChild(cond);
+        TreeNode *body=new TreeNode(NODE_STMT,$5->line);
+        body->stmtType=STMT_BODY;
+        body->addChild($5);
+        node->addChild(body);
         $$=node;
     }
     ;
@@ -154,7 +223,10 @@ for
         node->addChild($3);
         node->addChild($5);
         node->addChild($7);
-        node->addChild($9);
+        TreeNode *body=new TreeNode(NODE_STMT,$9->line);
+        body->stmtType=STMT_BODY;
+        body->addChild($9);
+        node->addChild(body);
         $$=node;
     }
 for1
@@ -196,9 +268,11 @@ for3
         node->addChild($1);
         $$=node;
     }
-bool_statment
-    : LPAREN bool_expr RPAREN {$$=$2;}
-    ;
+    |{
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
+        node->stmtType=STMT_FOR3;
+        $$=node;
+    }
 instruction0
     : type ID ASSIGN expr  {
         TreeNode *node=new TreeNode(NODE_STMT,$1->line);
@@ -262,6 +336,13 @@ instruction
         node->addChild($3);
         $$=node;  
     }
+    | ID ASSIGN CHARACTER SEMICOLON {
+        TreeNode *node=new TreeNode(NODE_STMT,$1->line);
+        node->stmtType=STMT_ASSIGN;
+        node->addChild($1);
+        node->addChild($3);
+        $$=node;  
+    }
     | ID ADD_ASSIGN expr SEMICOLON
     {
         TreeNode *node=new TreeNode(NODE_STMT,$1->line);
@@ -292,21 +373,45 @@ instruction
     }
     | printf SEMICOLON {$$=$1;}
     | scanf SEMICOLON {$$=$1;}
+    | CONST type ID ASSIGN INTEGER SEMICOLON {
+
+        TreeNode *node=new TreeNode(NODE_STMT,$2->line);
+        node->stmtType=STMT_CONDECL;
+        node->addChild($2);
+        node->addChild($3);
+        node->addChild($5);
+        $$=node;  
+    }
     ;
 printf
-    : PRINTF LPAREN expr RPAREN {
+    : PRINTF LPAREN expr RPAREN{
         TreeNode *node=new TreeNode(NODE_STMT,yylineno);
         node->stmtType=STMT_PRINTF;
         node->addChild($3);
         $$=node;
     }
-    | PRINTF LPAREN STRING COMMA expr RPAREN {
+    |PRINTF LPAREN STRING RPAREN{
         TreeNode *node=new TreeNode(NODE_STMT,yylineno);
         node->stmtType=STMT_PRINTF;
+        node->sibling=nullptr;
         node->addChild($3);
-        node->addChild($5);
-        $$=node;}
+        $$=node;
+    }
+    | PRINTF LPAREN printf0 RPAREN{
+        $$=$3;}
     ;
+printf0
+    : STRING COMMA expr{
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
+        node->stmtType=STMT_PRINTF;
+        node->addChild($1);
+        node->addChild($3);
+        $$=node;
+    }
+    | printf0 COMMA expr{
+        $1->addChild($3);
+        $$=$1;
+    }
 scanf
     : SCANF LPAREN expr RPAREN {
         TreeNode *node=new TreeNode(NODE_STMT,yylineno);
@@ -315,17 +420,46 @@ scanf
         $$=node;
     }
     | SCANF LPAREN STRING COMMA QUOTE expr RPAREN {
+
         TreeNode *node=new TreeNode(NODE_STMT,yylineno);
         node->stmtType=STMT_SCANF;
         node->addChild($3);
         node->addChild($6);
         $$=node;
     }
+    | SCANF LPAREN STRING RPAREN{
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
+        node->stmtType=STMT_SCANF;
+        node->addChild($3);
+        $$=node;
+    }
+    ;
+return_sen
+    : RETURN SEMICOLON {
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
+        node->stmtType=STMT_RETURN;
+        $$=node;}
+    | RETURN ID SEMICOLON{
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
+        node->stmtType=STMT_RETURN;$$=node;}
+    | RETURN INTEGER SEMICOLON{
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
+        node->stmtType=STMT_RETURN;$$=node;}
+    | RETURN STRING SEMICOLON{
+        TreeNode *node=new TreeNode(NODE_STMT,yylineno);
+        node->stmtType=STMT_RETURN;$$=node;}
     ;
 bool_expr
     : TRUE {$$=$1;}
     | FALSE {$$=$1;}
     | expr EQUAL expr {
+        TreeNode *node=new TreeNode(NODE_OP,$1->line);
+        node->opType=OP_EQUAL;
+        node->addChild($1);
+        node->addChild($3);
+        $$=node;
+    }
+    | bool_expr EQUAL bool_expr {
         TreeNode *node=new TreeNode(NODE_OP,$1->line);
         node->opType=OP_EQUAL;
         node->addChild($1);
@@ -360,6 +494,13 @@ bool_expr
         node->addChild($3);
         $$=node;
     }
+    | expr NOTEQ expr {
+        TreeNode *node=new TreeNode(NODE_OP,$1->line);
+        node->opType=OP_NOTEQ;
+        node->addChild($1);
+        node->addChild($3);
+        $$=node;
+    }
     | bool_expr AND bool_expr {
         TreeNode *node=new TreeNode(NODE_OP,$1->line);
         node->opType=OP_AND;
@@ -380,6 +521,9 @@ bool_expr
         node->addChild($2);
         $$=node;        
     }
+    | LPAREN bool_expr RPAREN{
+        $$=$2;
+    }
     ;
 expr
     : ID {$$=$1;}
@@ -389,7 +533,7 @@ expr
         $$=node;
     }
     | INTEGER {$$=$1;}
-    | SUB INTEGER %prec UMINUS {$$=$1; $$->int_val=-$$->int_val;}
+    | SUB INTEGER %prec UMINUS {$$=$2; $$->int_val=-$$->int_val;}
     | expr ADD expr {
         TreeNode *node=new TreeNode(NODE_OP,$1->line);
         node->opType=OP_ADD;
@@ -425,6 +569,13 @@ expr
         node->addChild($3);
         $$=node;   
     }
+    | LPAREN expr RPAREN{$$=$2;}
+    | SUB LPAREN expr RPAREN %prec UMINUS{
+        TreeNode *node=new TreeNode(NODE_UMINUS,$1->line);
+        node->addChild($3);
+        $$=node;
+    }
+    | instruction0{$$=$1;}
     ;
 type
     : INT {
@@ -440,6 +591,11 @@ type
     | CHAR {
         TreeNode *node=new TreeNode(NODE_TYPE,yylineno);
         node->varType=VAR_CHAR;
+        $$=node;  
+    }
+    | BOOL {
+        TreeNode *node=new TreeNode(NODE_TYPE,yylineno);
+        node->varType=VAR_BOOL;
         $$=node;  
     }
     ;
